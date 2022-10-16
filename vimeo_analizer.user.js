@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Vimeo Analyzer
 // @namespace    http://daxes.net/
-// @version      1.2
-// @description  try to take over the world!
+// @version      2.0
+// @description  Analyze sources for Vimeo video.
 // @author       Daxes
 // @match        https://player.vimeo.com/video/*
 // @grant        none
@@ -15,34 +15,47 @@
 
     var style = doc.createElement('style');
     style.type = 'text/css';
-    style.innerHTML = ' .box a.download-button { padding: 10px 4px;width: 36px;text-align: center; }' +
-                      ' .box a.download-button span { color:#fff;font-weight: bold;font-size: 1em; }' +
-                      ' .box .download-button:hover, .box .download-button.active { background-color: rgb(0, 173, 239); }';
+    style.innerHTML = ' .box {display: flex; justify-content: flex-end;transition: transform .15s ease-out;}' +
+                      ' .box.quality-box { height: 32px;margin-top: 6px;}' +
+                      ' .box .download-button { padding: 11px 0px;width: 32px;height: 32px;text-align: center; }' +
+                      ' .box .download-button span { color:#fff;font-weight: bold;font-size: 1em; }' +
+                      ' .box .download-button:hover, .box .download-button.active { background-color: rgb(0, 173, 239); }' +
+                      ' .box .download-button .radius { z-index: 1;top: 0.25rem;right: 0.25rem;position: absolute;width: 40px;height: 40px;pointer-events: none;transform: scale(0.94);border-radius: 0.5rem;border: 0.0625rem solid rgba(0, 173, 239, 0);transition: all 150ms ease-in-out 0s;}' +
+                      ' .box .download-button:focus .radius { transform: scale(1);border: 0.125rem solid rgb(0, 173, 239); display:none; }' +
+     ` .box > label {
+        background: rgba(0,0,0,.8);
+        height: 3em;
+        line-height: 3em;
+        border-radius: 3px;
+        transition: opacity .15s ease-out,transform .15s ease-out;
+        font-family: inherit;
+        border-radius: 4px;
+        color: #fff;
+        border: 0;
+        text-rendering: optimizelegibility;
+        -webkit-font-smoothing: antialiased;
+        background-color: rgba(0,0,0,.8);
+        display: flex;
+        border-radius: 0.25rem;
+        padding: 0.8em 1.2em;
+        line-height: 1.88rem;
+        height: 2rem;
+        font-size: 1.2em;
+        font-weight: 700;
+        margin: 8px 0 8px 8px;
+        align-items: center;
+        }`;
     doc.getElementsByTagName('head')[0].appendChild(style);
 
     var scripts = doc.querySelectorAll('body script');
-    html = scripts[scripts.length-1].innerHTML;
-    html2 = html.replaceAll('config','cf2').replace('var cf2','cf2').substr(2);
-    html2 = html2.replace('var usePlayer = fullscreenSupport || IE10 || windowsPhone;', 'var usePlayer = false;'); // Prevent double play
-    var sufix = '(document, document.getElementById(\'player\'))); ';
-    html2 = 'loadConfig = ' + html2.substr(0,html2.length - sufix.length);
-    eval(html2);
-    loadConfig(doc, doc.getElementById('player'));
-    console.log('== Title ==');
-    console.log(cf2.video.title);
-    console.log(cf2.video.share_url);
-    console.log('== Files ==');
-    var sources = [];
-    cf2.request.files.progressive.forEach(function(vid){
-        sources.push({
-            px: parseInt(vid.quality.substr(0, vid.quality.length - 1)),
-            quality: vid.quality,
-            width: vid.width,
-            height: vid.height,
-            url: vid.url
-        });
-    });
-    console.log('sources', sources);
+    //console.log('scripts',scripts);
+    var i,x;
+    for(i in scripts){
+        //console.log(scripts[i].innerHTML);
+        var f = scripts[i].innerHTML.indexOf('function(document, player)');
+        if(f != -1){ x = 1; break;}
+    }
+    html = scripts[x].innerHTML;
 
     window.onload = function() {
         var fadeInElement = function(el){
@@ -108,19 +121,29 @@
             });
         }
 
-        var div = doc.getElementsByClassName('vp-sidedock')[0];
+        setTimeout(function(){
+            var div = doc.getElementsByClassName('vp-sidedock')[0];
+            //console.log('vp-sidedock', doc.getElementsByClassName('vp-sidedock'), div);
 
-        //setTimeout(function(){
             var box = document.createElement('div');
             box.className = 'box download-box';
             //box.innerHTML += '  <label class="rounded-box download-label visible invisible" role="presentation"><span>Me gusta</span></label>';
+            box.innerHTML += '  <label class="" role="presentation" style="display: none;"><span>Download</span></label>';
             var btnDownload = document.createElement('button');
-            btnDownload.className = 'download-button rounded-box';
-            btnDownload.innerHTML = '  <svg class="like-icon" viewBox="0 0 512 512" preserveAspectRatio="xMidYMid" focusable="false"><path class="fill" d="M480 352h-133.5l-45.25 45.25C289.2 409.3 273.1 416 256 416s-33.16-6.656-45.25-18.75L165.5 352H32c-17.67 0-32 14.33-32 32v96c0 17.67 14.33 32 32 32h448c17.67 0 32-14.33 32-32v-96C512 366.3 497.7 352 480 352zM432 456c-13.2 0-24-10.8-24-24c0-13.2 10.8-24 24-24s24 10.8 24 24C456 445.2 445.2 456 432 456zM233.4 374.6C239.6 380.9 247.8 384 256 384s16.38-3.125 22.62-9.375l128-128c12.49-12.5 12.49-32.75 0-45.25c-12.5-12.5-32.76-12.5-45.25 0L288 274.8V32c0-17.67-14.33-32-32-32C238.3 0 224 14.33 224 32v242.8L150.6 201.4c-12.49-12.5-32.75-12.5-45.25 0c-12.49 12.5-12.49 32.75 0 45.25L233.4 374.6z"/></svg>';
+            //btnDownload.className = 'download-button rounded-box';
+            btnDownload.className = 'download-button sc-pVTFL cNOCbl iris-button';
+            btnDownload.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+            <rect width="256" height="256" fill="none" class="stroke" />
+            <path d="M176,128h48a8,8,0,0,1,8,8v64a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V136a8,8,0,0,1,8-8H80" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="12" class="stroke"/>
+            <line x1="128" y1="24" x2="128" y2="128" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="12" class="stroke"/>
+            <polyline points="80 80 128 128 176 80" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="12" class="stroke"/>
+            <circle cx="188" cy="168" r="10" stroke="#fff" class="stroke"/>
+            </svg>
+            <div radius="8" class="radius"></div>`;
             box.appendChild(btnDownload);
-            if(sources.length > 0) {
+            //if(sources.length > 0) {
                 div.appendChild(box);
-            }
+            //}
 
             setTimeout(function(){
                 doc.getElementsByClassName('download-button')[0].addEventListener("click",toggleQuality);
@@ -140,8 +163,30 @@
                 btnQ += '</div>';
                 div.innerHTML += btnQ;
             });
-        //},1000);
+        },500);
     };
+
+    html2 = html.replaceAll('config','cf2').replace('var cf2','cf2').substr(2);
+    html2 = html2.replace('var usePlayer = fullscreenSupport || IE10 || windowsPhone;', 'var usePlayer = false;'); // Prevent double play
+    var sufix = '(document, document.getElementById(\'player\'))); ';
+    html2 = 'loadConfig = ' + html2.substr(0,html2.length - sufix.length);
+    eval(html2);
+    loadConfig(doc, doc.getElementById('player'));
+    console.log('== Title ==');
+    console.log(cf2.video.title);
+    console.log(cf2.video.share_url);
+    console.log('== Files ==');
+    var sources = [];
+    cf2.request.files.progressive.forEach(function(vid){
+        sources.push({
+            px: parseInt(vid.quality.substr(0, vid.quality.length - 1)),
+            quality: vid.quality,
+            width: vid.width,
+            height: vid.height,
+            url: vid.url
+        });
+    });
+    console.log('sources', sources);
 
     console.log('== Embed ==');
     console.log(cf2.video.embed_code);
